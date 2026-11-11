@@ -1,48 +1,130 @@
-# NETDuckAIParser
+<h1 align="center">NETDuckAIParser</h1>
 
-Библиотека и CLI для получения ответов [Duck.ai](https://duck.ai) через Playwright.
-Проект разделён на два пакета:
+<p align="center">
+  <strong>Ask Duck.ai from your .NET code or terminal.</strong><br/>
+  A small Playwright-powered library with a ready-to-use CLI.
+</p>
 
-| Проект | Назначение |
+<p align="center">
+  <img alt=".NET 10" src="https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white"/>
+  <img alt="Playwright" src="https://img.shields.io/badge/Playwright-1.64-2EAD33?logo=playwright&logoColor=white"/>
+  <img alt="License: GPL-3.0" src="https://img.shields.io/badge/License-GPLv3-blue.svg"/>
+</p>
+
+---
+
+## Overview
+
+**NETDuckAIParser** sends a prompt to [Duck.ai](https://duck.ai) by driving a real
+Chromium browser with [Playwright](https://playwright.dev/dotnet/), then returns the
+generated answer.
+
+The solution contains two projects:
+
+| Project | Purpose |
 |---|---|
-| `DuckAiAutomation/DuckAi.Core` | Библиотека с публичным API `DuckAiClient` |
-| `DuckAiAutomation/DuckAi.Cli` | Консольная обёртка `duckai` (флаги + JSON) |
+| `DuckAiAutomation/DuckAi.Core` | Class library with the public `DuckAiClient` API |
+| `DuckAiAutomation/DuckAi.Cli` | Console wrapper named `duckai` (flags + JSON I/O) |
 
-## Требования
+**Highlights**
 
-- .NET 10 SDK;
-- Chromium для Playwright (скачивается отдельно, в NuGet-пакет не входит).
+- One required argument — the prompt — everything else is optional.
+- Typed .NET API with `CancellationToken` support.
+- CLI with flags, JSON input/output, and predictable exit codes.
+- Persistent browser profile, so consent and cookies survive between runs.
+- Requests are serialized per client to avoid profile-lock conflicts.
 
-## Установка браузера
+## Requirements
 
-Один раз после сборки:
+- [.NET 10 SDK](https://dotnet.microsoft.com/download)
+- Chromium for Playwright (installed separately; it is not bundled with the NuGet package)
+
+## Getting Started
+
+Install the Playwright browser once:
 
 ```bash
 dotnet run --project DuckAiAutomation/DuckAi.Cli -- install
 ```
 
-Либо вручную:
+Build the solution:
 
 ```bash
-pwsh DuckAiAutomation/DuckAi.Cli/bin/Release/net10.0/playwright.ps1 install chromium
+dotnet build DuckAiAutomation/DuckAiAutomation.sln -c Release
 ```
 
-## Использование как библиотеки
-
-Подключи проект:
+Run your first prompt from the repository root:
 
 ```bash
-dotnet add reference ../NETDuckAIParser/DuckAiAutomation/DuckAi.Core/DuckAi.Core.csproj
+dotnet run --project DuckAiAutomation/DuckAi.Cli -- "Explain the Transformer architecture in three sentences"
 ```
 
-или собери и подключи NuGet-пакет:
+> The examples below use `duckai` for brevity. When running from source, replace it with
+> `dotnet run --project DuckAiAutomation/DuckAi.Cli --`.
+
+## CLI Usage
+
+```text
+duckai "your prompt" [options]
+duckai --prompt-file prompt.txt [options]
+echo '{"prompt":"..."}' | duckai --stdin-json [options]
+duckai install
+```
+
+### Flags
+
+| Flag | Argument | Default | Description |
+|---|---|---|---|
+| `-p`, `--prompt` | `<text>` | — | Prompt text. Can also be passed as the first positional argument. |
+| `--prompt-file` | `<path>` | — | Read the prompt from a text file. |
+| `--stdin-json` | — | off | Read a JSON request from standard input. |
+| `--timeout` | `<seconds>` | `120` | Maximum time to wait for an answer. Must be greater than zero. |
+| `--headless` / `--no-headless` / `--headed` | — | headless | Run without a window or show it. A visible browser is useful for debugging, CAPTCHA, or first-run consent. |
+| `--profile-dir` | `<path>` | OS user-data directory | Persistent Chromium profile directory. |
+| `--url` | `<url>` | `https://duck.ai/chat` | Chat page URL. |
+| `--json` | — | off | Print the result as JSON instead of plain text. |
+| `--log` / `--no-log` | — | on | Enable or disable progress logs. Logs are written to stderr. |
+| `-h`, `--help` | — | — | Show help. |
+| `install` | — | — | Subcommand: download the Chromium build used by Playwright. |
+
+### Examples
+
+```bash
+# Positional prompt
+duckai "What is the capital of France?"
+
+# Machine-readable output for another program
+duckai "What is the capital of France?" --timeout 90 --json --no-log
+
+# Prompt from a file
+duckai --prompt-file prompt.txt
+
+# JSON request over stdin
+echo '{"prompt":"What is the capital of France?","timeoutSeconds":90}' \
+  | duckai --stdin-json --json
+
+# Visible browser for debugging
+duckai "hello" --no-headless --log
+
+# Custom profile and URL
+duckai "hello" --profile-dir ./profile --url https://duck.ai/chat
+```
+
+## Library Usage
+
+Reference the core project:
+
+```bash
+dotnet add reference path/to/DuckAiAutomation/DuckAi.Core/DuckAi.Core.csproj
+```
+
+Or build a NuGet package:
 
 ```bash
 dotnet pack DuckAiAutomation/DuckAi.Core -c Release
-dotnet add package DuckAi.Core --source DuckAiAutomation/DuckAi.Core/bin/Release
 ```
 
-Пример:
+Minimal example:
 
 ```csharp
 using DuckAi;
@@ -53,101 +135,50 @@ await using var client = new DuckAiClient(new DuckAiOptions
     Timeout = TimeSpan.FromSeconds(120)
 });
 
-DuckAiResponse response = await client.AskAsync("Объясни архитектуру Transformer");
+DuckAiResponse response = await client.AskAsync(
+    "Explain the Transformer architecture in three sentences");
+
 Console.WriteLine(response.Text);
-Console.WriteLine($"Заняло: {response.Elapsed.TotalSeconds:0.0} с");
+Console.WriteLine($"Elapsed: {response.Elapsed.TotalSeconds:0.0}s");
 ```
 
-Промпт — единственный обязательный аргумент. Остальные параметры опциональны:
+Per-request overrides are supported:
 
 ```csharp
-await using var client = new DuckAiClient(new DuckAiOptions
-{
-    TargetUrl = "https://duck.ai/chat",
-    ProfileDir = DuckAiOptions.GetDefaultProfileDir(),
-    Headless = true,
-    Timeout = TimeSpan.FromSeconds(120),
-    EnableLogging = true,
-    Log = Console.Error.WriteLine
-});
-
 var response = await client.AskAsync(new DuckAiRequest
 {
-    Prompt = "Привет!",
-    Timeout = TimeSpan.FromSeconds(60) // переопределение на один запрос
-});
+    Prompt = "Summarize this article.",
+    Timeout = TimeSpan.FromSeconds(60)
+}, cancellationToken);
 ```
 
-### Настройки
+### Options
 
-| Свойство | По умолчанию | Описание |
+| Option | Default | Description |
 |---|---|---|
-| `TargetUrl` | `https://duck.ai/chat` | Адрес чата |
-| `ProfileDir` | каталог данных пользователя | Постоянный профиль Chromium |
-| `Headless` | `true` | Запуск без окна браузера |
-| `UseNewHeadless` | `true` | Полный Chromium в новом headless-режиме вместо headless shell |
-| `Timeout` | 120 секунд | Таймаут ожидания ответа |
-| `EnableLogging` | `false` | Включить логи |
-| `Log` | `Console.Error` | Куда писать логи |
+| `TargetUrl` | `https://duck.ai/chat` | Chat page URL. |
+| `ProfileDir` | OS user-data directory | Persistent Chromium profile. |
+| `Headless` | `true` | Run without a visible browser window. |
+| `UseNewHeadless` | `true` | Use full Chromium in the new headless mode instead of headless shell. |
+| `Timeout` | `120s` | Default answer timeout. |
+| `EnableLogging` | `false` | Enable progress logging. |
+| `Log` | `Console.Error` | Log sink. |
 
-### Ошибки
+### Exceptions
 
-| Исключение | Когда возникает |
+| Exception | When it is thrown |
 |---|---|
-| `DuckAiTimeoutException` | Duck.ai не начал или не закончил ответ; содержит `PartialText` |
-| `DuckAiException` | Прочие ошибки браузера/навигации; внутри `InnerException` |
+| `DuckAiTimeoutException` | Duck.ai did not start or finish the answer. Exposes `PartialText` when available. |
+| `DuckAiException` | Browser, navigation, or other unexpected failures. Contains the original error in `InnerException`. |
+| `OperationCanceledException` | The operation was cancelled through `CancellationToken`. |
 
-`OperationCanceledException` пробрасывается как есть при отмене через `CancellationToken`.
+## JSON Interface
 
-### Важно про параллельность
-
-Постоянный профиль Chromium нельзя открыть дважды. Один экземпляр `DuckAiClient`
-выполняет запросы последовательно через `SemaphoreSlim`. Если нужно несколько
-процессов одновременно — задайте каждому свой `ProfileDir`.
-
-## CLI
-
-```bash
-# Промпт позиционным аргументом
-dotnet run --project DuckAiAutomation/DuckAi.Cli -- "Столица Франции?"
-
-# С параметрами
-dotnet run --project DuckAiAutomation/DuckAi.Cli -- \
-  "Столица Франции?" --timeout 90 --json --no-log
-
-# Промпт из файла
-dotnet run --project DuckAiAutomation/DuckAi.Cli -- --prompt-file prompt.txt
-
-# JSON из stdin (удобно для вызова из Python/Node)
-echo '{"prompt":"Столица Франции?","timeoutSeconds":90}' \
-  | dotnet run --project DuckAiAutomation/DuckAi.Cli -- --stdin-json --json
-
-# Показать окно браузера для диагностики
-dotnet run --project DuckAiAutomation/DuckAi.Cli -- "тест" --no-headless
-```
-
-### Флаги
-
-```
--p, --prompt <text>       Текст промпта
-    --prompt-file <path>  Прочитать промпт из файла
-    --stdin-json          Прочитать JSON-запрос из stdin
-    --timeout <sec>       Таймаут в секундах (по умолчанию 120)
-    --no-headless         Показывать окно браузера
-    --profile-dir <path>  Каталог профиля браузера
-    --url <url>           URL чата
-    --json                Вывести ответ в JSON
-    --log / --no-log      Включить/выключить логи
--h, --help                Справка
-```
-
-### JSON-контракт
-
-Запрос:
+### Request
 
 ```json
 {
-  "prompt": "Столица Франции?",
+  "prompt": "What is the capital of France?",
   "timeoutSeconds": 90,
   "headless": false,
   "profileDir": "./profile",
@@ -155,55 +186,68 @@ dotnet run --project DuckAiAutomation/DuckAi.Cli -- "тест" --no-headless
 }
 ```
 
-Успешный ответ:
+Only `prompt` is required.
+
+### Response
+
+Success:
 
 ```json
-{"ok":true,"text":"Париж","elapsedMs":3210}
+{"ok":true,"text":"Paris","elapsedMs":3210}
 ```
 
-Ошибка:
+Failure:
 
 ```json
 {"ok":false,"error":"...","errorType":"timeout","details":"...","partialText":"..."}
 ```
 
-Коды возврата: `0` — успех, `1` — ошибка, `2` — ошибка аргументов, `130` — отмена.
+### Exit Codes
 
-## Как передавать аргументы
+| Code | Meaning |
+|---|---|
+| `0` | Success |
+| `1` | Runtime error |
+| `2` | Invalid arguments |
+| `130` | Cancelled |
 
-- **Внутри .NET** — типизированный объект (`DuckAiOptions`, `DuckAiRequest`), без JSON.
-  Это даёт проверку на этапе компиляции и автодополнение.
-- **Между процессами/языками** — JSON на границе (stdin CLI или тело HTTP-запроса),
-  с десериализацией в DTO. Не передавайте JSON-строку внутрь библиотечного метода.
-- **Простые случаи в shell** — позиционный промпт + флаги. JSON нужен, когда
-  промпт длинный, содержит кавычки/переводы строк или параметров много.
+## Notes
 
-## Диагностика
+- **Headless mode uses full Chromium.** Playwright's lightweight headless shell is
+  often rejected by Duck.ai, so `Headless = true` launches the full Chromium build in
+  the new headless mode (`Channel = "chromium"`). Set `UseNewHeadless = false` to opt out.
+- **One request at a time per client.** A persistent Chromium profile cannot be opened
+  twice. `DuckAiClient` serializes calls with a semaphore. For parallel processes, give
+  each process its own `ProfileDir`.
+- **Browser installation is required.** `dotnet ... -- install` or
+  `playwright.ps1 install chromium`.
 
-Если Duck.ai не отвечает:
+## Troubleshooting
 
-1. Проверьте сеть с той же машины:
+1. **Check connectivity:**
    ```bash
    curl -I https://duck.ai/chat
-   curl -s https://duck.ai/chat | head
    ```
-   Должен быть ответ `200`/редирект, а не таймаут или `403`.
-2. **VPN должен быть системным.** VPN-расширение в обычном браузере не влияет на
-   Chromium, который запускает Playwright. Включите системный VPN или настройте
-   прокси на уровне ОС.
-3. Запустите CLI с `--no-headless` и посмотрите, что открывается: CAPTCHA,
-   гео-блокировка, страница согласия или обычный чат.
-4. Убедитесь, что Chromium установлен: `duckai install` (или `playwright.ps1 install chromium`).
-   В headless-режиме библиотека запускает полный Chromium (`Channel = "chromium"`),
-   а не облегчённый headless shell: Duck.ai часто не генерирует ответ в headless shell.
-   Отключить это поведение можно через `UseNewHeadless = false`.
-5. Проверьте, что профиль не занят другим процессом. Если в `ProfileDir` уже
-   работает Chromium, закройте его или укажите другой каталог.
-6. Если используете свежий профиль, при первом запуске может потребоваться
-   вручную принять условия — сделайте это в режиме `--no-headless`.
+   A timeout or `403` means the problem is network/VPN related, not the parser.
 
-## Сборка
+2. **Use a system-wide VPN.** A VPN browser extension does not affect the Chromium
+   instance launched by Playwright.
 
-```bash
-dotnet build DuckAiAutomation/DuckAiAutomation.sln -c Release
-```
+3. **Run with `--no-headless`** to see whether Duck.ai shows a CAPTCHA, a consent
+   dialog, or a regional block. Solving consent once is enough: the persistent profile
+   keeps the session.
+
+4. **Reinstall the browser** if Playwright reports that Chromium is missing:
+   ```bash
+   duckai install
+   ```
+
+5. **Use a fresh profile** to rule out stale browser state:
+   ```bash
+   duckai "test" --no-headless --profile-dir ./tmp_profile
+   ```
+
+## License
+
+This project is licensed under the **GNU General Public License v3.0**.
+See [LICENSE](LICENSE) for details.
