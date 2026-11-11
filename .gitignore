@@ -52,3 +52,10 @@ CodeCoverage/
 *.VisualState.xml
 TestResult.xml
 nunit-*.xml
+
+# macOS
+.DS_Store
+
+# Local Duck.ai browser profile (contains cookies and session state)
+**/duck_custom_profile/
+.duck_profile/

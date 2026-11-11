@@ -1,0 +1,22 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <OutputType>Library</OutputType>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+
+        <PackageId>DuckAi.Core</PackageId>
+        <Version>0.1.0</Version>
+        <Authors>NETDuckAIParser</Authors>
+        <Description>Библиотека для получения ответов Duck.ai через Playwright.</Description>
+        <PackageTags>duck.ai;playwright;automation;llm</PackageTags>
+        <GenerateDocumentationFile>true</GenerateDocumentationFile>
+        <NoWarn>$(NoWarn);CS1591</NoWarn>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.Playwright" Version="1.64.1"/>
+    </ItemGroup>
+
+</Project>
